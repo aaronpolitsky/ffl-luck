@@ -1,3 +1,7 @@
+# number of teams
+num.teams <- 12
+reg.season.weeks <- 14
+
 # performs a simulation of all schedules based on rank of score in a week.
 season.rank.simulation <- function(season.dt) {
   # season.dt has four columns:  week (number), owner (string), score (number), and year. 
@@ -8,11 +12,11 @@ season.rank.simulation <- function(season.dt) {
   # generate count of worse scores, and their probabilities, per week
   # note:  rank needs score to be a numeric in order to properly rank scores. 
   season.dt[, worse.scores := base::rank(score)-1, by=.(week)]
-  season.dt[, win.prob := worse.scores/11]
+  season.dt[, win.prob := worse.scores/(num.teams-1)]
   season.dt[, lose.prob := 1-win.prob]
   
-  # ignore playoffs which start in week 15
-  reg.season <- season.dt[week<15]
+  # ignore playoffs
+  reg.season <- season.dt[week <= reg.season.weeks]
   
   # order by owner, then week. we need this ordering for when we attach the simulated win/loss path
   setkeyv(reg.season, c("owner.id", "week"))
@@ -27,9 +31,9 @@ season.rank.simulation <- function(season.dt) {
   
   # construct a record distribution table
   record.distribution <- 
-    as.data.table(expand.grid("owner.id"=c(1:12), 
-                              "wins"=c(0:14), 
-                              "losses"=c(14:0)))[wins + losses == 14]
+    as.data.table(expand.grid("owner.id"=c(1:num.teams), 
+                              "wins"=c(0:reg.season.weeks), 
+                              "losses"=c(reg.season.weeks:0)))[wins + losses == reg.season.weeks]
   setkeyv(record.distribution, c("owner.id", "wins"))
   # initialize its probability column
   record.distribution[, prob := 0]
@@ -43,7 +47,7 @@ season.rank.simulation <- function(season.dt) {
     for(path.id in 1:dim(all.paths)[1]) {
       # each row of all.paths is a win/loss sequence.  
       #   for each row, transpose into a column, replicate for each owner, and attach to reg.season
-      reg.season$result <- rep(t(all.paths[path.id,1:14, with=F]), 12)
+      reg.season$result <- rep(t(all.paths[path.id, 1:reg.season.weeks, with=F]), num.teams)
       
       # use that result column as a switch to choose associated probability 
       reg.season[, result.probability := ifelse(result==1, win.prob, lose.prob)] 

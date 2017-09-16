@@ -29,4 +29,7 @@ names(league.history) <- as.character(years)
 league.history.record.distributions <- 
   lapply(league.history, season.rank.simulation)
 
+league.history.record.distributions.dt <- rbindlist(league.history.record.distributions)
+write.csv(x = league.history.record.distributions.dt, file = "league.history.record.distributions.csv")
 
+unique(league.history.record.distributions.dt[, owner.id, by=.(owner, year)])
