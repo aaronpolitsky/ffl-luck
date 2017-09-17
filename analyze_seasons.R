@@ -31,5 +31,3 @@ league.history.record.distributions <-
 
 league.history.record.distributions.dt <- rbindlist(league.history.record.distributions)
 write.csv(x = league.history.record.distributions.dt, file = "league.history.record.distributions.csv")
-
-unique(league.history.record.distributions.dt[, owner.id, by=.(owner, year)])
