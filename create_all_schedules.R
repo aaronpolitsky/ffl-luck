@@ -1,27 +1,39 @@
 require('data.table')
 
+num.teams <- 6
+div.size <- 2
+
 create.reg.season.schedule.all.teams <- function() {
 
- # import generic schedule matrix for teams assigned 1:12
-  schedule.matrix <- as.data.table(read.csv("./ffl schedule - Sheet1.csv", 
-                                            row.names=1))
-  
+ # import generic schedule matrix for teams assigned 1:num.teams
+  if(num.teams==12) {
+    schedule.matrix <- as.data.table(read.csv("./ffl schedule - Sheet1.csv", 
+                                              row.names=1))
+  } else if (num.teams==6) {
+    schedule.matrix <- as.data.table(read.csv("./six-team schedule - Sheet1.csv", 
+                                              row.names=1))
+  } 
+    
   # form a long data.table with week, home, away column
   schedule.dt <- data.table("week" = numeric(),
-                          "team.id" = integer(),
-                          "opponent.id" = integer())
-  last.3.dt <- copy(schedule.dt)
+                            "team.id" = integer(),
+                            "opponent.id" = integer())
+  last.div.play.weeks.dt <- copy(schedule.dt)
   
   for (tid in as.numeric(rownames(schedule.matrix))) {
-    for(w in 1:11) {
+    for(w in 1:(num.teams-1)) {
       opp.id <- which(schedule.matrix[tid,]==w)
       schedule.dt <- rbind(schedule.dt, list(w, tid, opp.id))
     }
   }
   
-  # weeks 12-14 are weeks 1-3 in reverse
-  last.3.dt <- copy(schedule.dt)[, week := 11+(4-week)][week %in% 12:14]
-  schedule.dt <- rbind(schedule.dt, last.3.dt)
-  
+  if(num.teams == 12) {
+    # weeks 12-14 are weeks 1-3 in reverse
+    last.div.play.weeks.dt <- copy(schedule.dt)[, week := (num.teams-1)+(4-week)][week %in% 12:14]
+  }
+  else if (num.teams==6) {
+    last.div.play.weeks.dt <- copy(schedule.dt)[week==1, ][, week:=6]
+  }
+  schedule.dt <- rbind(schedule.dt, last.div.play.weeks.dt)
   return(schedule.dt)
 }

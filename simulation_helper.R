@@ -15,20 +15,17 @@ simulate.season <- function(ordering) {
   setkeyv(sched, cols = c("week", "opponent.id"))
   sched[season.dt, opp.score := score]
   
+  
   # get team scores and copy owner.id
   setkeyv(sched, cols = c("week", "team.id"))
-  sched[season.dt, c("team.score", "owner.id") := list(score, owner.id)]
-  #sched[season.dt, team.score := score]
-  #sched[season.dt, owner.id := owner.id]
+  sched[season.dt, team.score := score]
+  sched[season.dt, owner.id := owner.id]
   
-  sched[, w := sum(team.score > opp.score) , by=.(team.id)]
-  #sched[, l := sum(team.score < opp.score) , by=.(team.id)]
-  #sched[, t := 14-w-l]
   
-  #records <- unique(sched[, .(w, l, t), by=.(owner.id)])
-  records <- sched[, w := min(w), by=.(owner.id)]
-  setkeyv(records, c("owner.id", "w"))
- 
+  records <- sched[, sum(team.score > opp.score) , by=.(owner.id)]
+
+  setkeyv(records, c("owner.id", "V1"))
+  
   # merge and increment simulated records
   record.distribution[records, count := count + 1]
 }
