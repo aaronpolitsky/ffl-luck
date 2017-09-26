@@ -13,7 +13,7 @@ get.season.standings <- function(league.id, year) {
   names(standings) <- c("owner", "record")
   standings$wins <- str_split(standings$record, '-', simplify = T)[,1]
   standings$year <- year
-  standings[, wins := as.numeric(wins)]
+  standings[, wins := as.integer(wins)]
   return(standings)  
 }
   
@@ -55,7 +55,7 @@ get.season.scores <- function(league.id, year) {
   away.season.dt
   season.dt <- rbind(home.season.dt, away.season.dt)
   season.dt$year <- year
-  season.dt[, score := as.numeric(score)]
+  season.dt[, score := as.integer(score)]
   return(season.dt)
 }
 
