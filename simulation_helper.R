@@ -1,32 +1,37 @@
 require(data.table)
 
 
-simulate.season <- function(ordering) {
+simulate.season <- function(season, schedule, ordering, rec.dist) {
+  # data.tables are passed by reference, so copy to discard any side effects
+  sched <- copy(schedule)
+  seas <- copy(season) 
+  
   # assign team orders. 
   owner.slot.index <- as.data.table(list(owner.id = owner.ids, slot.id = ordering))
   
   setkey(owner.slot.index, owner.id)
-  setkey(season.dt, owner.id)
-  season.dt <- owner.slot.index[season.dt]
+  setkey(seas, owner.id)
+  seas <- owner.slot.index[seas]
   
-  setkeyv(season.dt, cols = c("week", "slot.id"))
+  setkeyv(seas, cols = c("week", "slot.id"))
   
   # get opponent scores
   setkeyv(sched, cols = c("week", "opponent.id"))
-  sched[season.dt, opp.score := score]
+  sched[seas, opp.score := score]
   
   
   # get team scores and copy owner.id
   setkeyv(sched, cols = c("week", "team.id"))
-  sched[season.dt, team.score := score]
-  sched[season.dt, owner.id := owner.id]
+  sched[seas, team.score := score]
+  sched[seas, team.owner.id := owner.id]
   
-  
-  records <- sched[, sum(team.score > opp.score) , by=.(owner.id)]
+  records <- sched[, sum(team.score > opp.score) , by=.(team.owner.id)]
 
-  setkeyv(records, c("owner.id", "V1"))
+  setkeyv(records, c("team.owner.id", "V1"))
   
   # merge and increment simulated records
-  record.distribution[records, count := count + 1]
+  rec.dist[records, count := count + 1]
+  
+  return(rec.dist)
 }
 

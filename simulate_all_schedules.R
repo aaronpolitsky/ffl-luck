@@ -29,8 +29,11 @@ record.distribution$count = 0
 system.time(
   while(length(curr)>1) { # curr is the current ordering of teams to schedule slots.  
     # simulate
-    simulate.season(curr)
-  
+    record.distribution <- simulate.season(season = season.dt, 
+                                           schedule = sched, 
+                                           rec.dist = record.distribution,
+                                           ordering = curr)
+    
     curr <- get.next.permutation()
     j <- j + 1
     if(j==10000) {curr<-0} # break condition
