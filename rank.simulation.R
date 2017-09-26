@@ -1,22 +1,20 @@
-# number of teams
-num.teams <- 12
-reg.season.weeks <- 14
 
 # performs a simulation of all schedules based on rank of score in a week.
-season.rank.simulation <- function(season.dt) {
-  # season.dt has four columns:  week (number), owner (string), score (number), and year. 
+season.rank.simulation <- function(seas, num.teams, reg.season.weeks) {
+  # seas has four columns:  week (number), owner (string), score (number), and year. 
   
   # assign an index to the owners
-  season.dt[, owner.id := .GRP, by=.(owner)]
+  seas[, owner.id := .GRP, by=.(owner)]
+  
+  # ignore playoffs and extra teams
+  reg.season <- seas[week <= reg.season.weeks & owner.id <= num.teams]
   
   # generate count of worse scores, and their probabilities, per week
   # note:  rank needs score to be a numeric in order to properly rank scores. 
-  season.dt[, worse.scores := base::rank(score)-1, by=.(week)]
-  season.dt[, win.prob := worse.scores/(num.teams-1)]
-  season.dt[, lose.prob := 1-win.prob]
+  reg.season[, worse.scores := base::rank(score)-1, by=.(week)]
+  reg.season[, win.prob := worse.scores/(num.teams-1)]
+  reg.season[, lose.prob := 1-win.prob]
   
-  # ignore playoffs
-  reg.season <- season.dt[week <= reg.season.weeks]
   
   # order by owner, then week. we need this ordering for when we attach the simulated win/loss path
   setkeyv(reg.season, c("owner.id", "week"))
@@ -28,6 +26,7 @@ season.rank.simulation <- function(season.dt) {
                 c(1,0), c(1,0), c(1,0), c(1,0), 
                 c(1,0), c(1,0), c(1,0), c(1,0), 
                 c(1,0), c(1,0)))
+  all.paths <- all.paths[1:(2^reg.season.weeks-1), 1:num.teams, with=F]
   
   # construct a record distribution table
   record.distribution <- 
@@ -39,7 +38,11 @@ season.rank.simulation <- function(season.dt) {
   record.distribution[, prob := 0]
   
   # add owner name column and actual wins. 
-  owner.index <- unique(reg.season[, .(owner, actual.wins, year), by=.(owner.id)])
+  reg.season[, owner.id := .GRP, by=.(owner)]
+  
+  owner.index <- unique(reg.season[owner.id <= num.teams, .(owner, actual.wins, year), by=.(owner.id)])
+  setkeyv(owner.index, c("owner.id"))
+
   record.distribution <- record.distribution[owner.index ]
   
   # for each win/loss path 

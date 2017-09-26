@@ -6,6 +6,7 @@ source("get.next.permutation.R")
 weeks <- 2*(div.size-1) + num.teams - div.size
 
 season.dt <- get.season.scores(league.id = 117, year = 2016)[week <= weeks]
+setkeyv(season.dt, c("week", "owner"))
 season.dt[, owner.id := .GRP, by=.(owner)]
 
 season.dt <- season.dt[owner.id <= num.teams]
