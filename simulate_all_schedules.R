@@ -1,5 +1,6 @@
 source('read.season.R')
 source('create_all_schedules.R')
+debugSource("simulation_helper.R")
 source("get.next.permutation.R")
 
 weeks <- 2*(div.size-1) + num.teams - div.size
