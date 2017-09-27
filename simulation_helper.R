@@ -1,37 +1,28 @@
 require(data.table)
 
-
-simulate.season <- function(season, schedule, ordering, rec.dist) {
-  # data.tables are passed by reference, so copy to discard any side effects
+simulate.season <- function(schedule, ordering, all.possible.matchups, rec.dist) {
+  # generate owner.slot lookup from the ordering
+  owner.slot.index <- as.data.table(list(owner.id = 1:12, slot.id = ordering))
+  setkey(owner.slot.index, "slot.id")
+  
+  # copy schedule so as to avoid nasty side effects from iteration to iteration.
   sched <- copy(schedule)
-  seas <- copy(season) 
   
-  # assign team orders. 
-  owner.slot.index <- as.data.table(list(owner.id = owner.ids, slot.id = ordering))
-  
-  setkey(owner.slot.index, owner.id)
-  setkey(seas, owner.id)
-  seas <- owner.slot.index[seas]
-  
-  setkeyv(seas, cols = c("week", "slot.id"))
-  
-  # get opponent scores
-  setkeyv(sched, cols = c("week", "opponent.id"))
-  sched[seas, opp.score := score]
-  
-  
-  # get team scores and copy owner.id
-  setkeyv(sched, cols = c("week", "team.id"))
-  sched[seas, team.score := score]
-  sched[seas, team.owner.id := owner.id]
-  
-  records <- sched[, sum(team.score > opp.score) , by=.(team.owner.id)]
+  # identify owner.ids of home slot team
+  setkeyv(sched, "home.slot.id")
+  sched[owner.slot.index, home.owner.id := owner.id]
+  # get owner.id of opponent slot.id
+  setkeyv(sched, "opp.slot.id")
+  sched[owner.slot.index, opp.owner.id := owner.id]
 
-  setkeyv(records, c("team.owner.id", "V1"))
+  # set keys to join sched to all.possible.matchups
+  setkeyv(sched, c("week", "home.owner.id", "opp.owner.id"))
   
-  # merge and increment simulated records
+  # for each actual matchup, lookup whether it was a win, then find the total wins by owner
+  records <- all.possible.matchups[sched, sum(w), by=.(home.owner.id)]
+
+  # then accumulate back to the record distribution
+  setkeyv(records, c("home.owner.id", "V1"))
   rec.dist[records, count := count + 1]
   
-  return(rec.dist)
 }
-

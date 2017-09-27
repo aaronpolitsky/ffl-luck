@@ -1,6 +1,6 @@
 source('read.season.R')
 source('create_all_schedules.R')
-debugSource("simulation_helper.R")
+source("simulation_helper.R")
 source("get.next.permutation.R")
 
 weeks <- 2*(div.size-1) + num.teams - div.size
@@ -10,42 +10,54 @@ setkeyv(season.dt, c("week", "owner"))
 season.dt[, owner.id := .GRP, by=.(owner)]
 
 season.dt <- season.dt[owner.id <= num.teams]
-owner.ids <- season.dt[, unique(owner.id)]
 
 sched <- create.reg.season.schedule.all.teams()
-sched[, team.id := as.integer(team.id)]
+
+season.dt <- season.dt[week <= weeks,]
+
+# uses record counter to keep track of each team's 
+record.distribution <-      
+  as.data.table(expand.grid(c(1:num.teams), c(0:weeks))) 
+names(record.distribution) <- c("home.owner.id", "w")
+setkeyv(record.distribution, c("home.owner.id", "w"))
+record.distribution$count = 0
+
+# construct all matchups and generate perspective wins, to serve as a lookup 
+all.possible.matchups <- data.table(expand.grid(1:weeks, 1:num.teams, 1:num.teams))
+names(all.possible.matchups) <- c("week", "home.owner.id", "opp.owner.id")
+setkeyv(all.possible.matchups, c("week", "home.owner.id"))
+setkeyv(season.dt, c("week", "owner.id"))
+all.possible.matchups[season.dt, home.score := score]
+setkeyv(all.possible.matchups, c("week", "opp.owner.id"))
+all.possible.matchups[season.dt, opp.score := score]
+all.possible.matchups[, w := home.score > opp.score]
+setkeyv(all.possible.matchups, c("week", "home.owner.id", "opp.owner.id"))
+
 
 curr <- 1:num.teams # first permutation
 j <- 0
-
-season.dt <- season.dt[week <= weeks,]
-# uses global record counter to keep track of each team's 
-record.distribution <-      # teams, wins     losses   ties
-  as.data.table(expand.grid(c(1:num.teams), c(0:weeks))) #
-
-names(record.distribution) <- c("owner.id", "w")#, "l", "t")
-setkeyv(record.distribution, c("owner.id", "w"))#, "l", "t"))
-record.distribution$count = 0
-
+keep.going <- TRUE
+#ten.thousandth.curr <- c(1,2,3,4,6,12,11,7,9,10,5,8) # because i simulated it.
 system.time(
-  while(length(curr)>1) { # curr is the current ordering of teams to schedule slots.  
-    # simulate
-    record.distribution <- simulate.season(season = season.dt, 
-                                           schedule = sched, 
-                                           rec.dist = record.distribution,
-                                           ordering = curr)
+  # go through every ordering of teams, and hence, every schedule 
+  # while(length(curr) > 0) { # this is what get.next.permutation returns when it rolls over.
+  while(keep.going) {
+    #  while(!all(curr == ten.thousandth.curr)) { # curr is the current ordering of teams to schedule slots.  
     
+    simulate.season(schedule = sched, 
+                    ordering = curr,
+                    all.possible.matchups = all.possible.matchups, 
+                    rec.dist = record.distribution)
     curr <- get.next.permutation()
+    
     j <- j + 1
-    if(j==10000) {curr<-0} # break condition
+    if(j==10000) {keep.going <- FALSE} # break condition
   } 
 )
 
 # add back owner names
-record.distribution <- 
-  merge(x=record.distribution, y=unique(season.dt[, .(owner.id, owner)]), by = "owner.id")
+#record.distribution <- 
+#  merge(x=record.distribution, y=unique(season.dt[, .(owner.id, owner)]), by = "owner.id")
 
-setkeyv(record.distribution, c("w", "owner.id"))
-
-record.distribution[owner.id==5 & count>0]
+#setkeyv(record.distribution, c("w", "owner.id"))
 
