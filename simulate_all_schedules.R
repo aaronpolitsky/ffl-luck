@@ -12,8 +12,8 @@ seasons <- seasons[, X:=NULL] # remove that index column
 
 years <- seasons[, unique(year)]
 # just do this one for now.
-years <- 2017
-result.list <- lapply(years, function(yr) {
+yr <- 2016
+#result.list <- lapply(years, function(yr) {
   season.dt <- seasons[year==yr] 
 
   setkeyv(season.dt, c("week", "owner"))
@@ -46,7 +46,9 @@ result.list <- lapply(years, function(yr) {
 
   curr <- 1:num.teams # first permutation
   j <- 0
-  save.image("./workspace.Rdata")      
+  save.image("./workspace.Rdata")    
+  
+  # restart from here
   load("./workspace.Rdata")
   #keep.going <- TRUE
   system.time(
@@ -65,15 +67,16 @@ result.list <- lapply(years, function(yr) {
       j <- j + 1
       # every 1000000 iterations, save
       if(j%%1000000==0) {
-        save.image("./workspace.Rdata")      
+        print(c(j,curr))
+        save.image("./workspace.Rdata")
       } 
     } 
   )
-
   # add back owner names
   #record.distribution <- 
   #  merge(x=record.distribution, y=unique(season.dt[, .(owner.id, owner)]), by = "owner.id")
 
   #setkeyv(record.distribution, c("w", "owner.id"))
-  return(record.distribution)
-})
+  #return(record.distribution)
+  save(list=c("yr", "record.distribution"), file=paste0(year,"results.Rda"))
+#})
