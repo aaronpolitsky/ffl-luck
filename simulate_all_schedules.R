@@ -46,6 +46,8 @@ result.list <- lapply(years, function(yr) {
 
   curr <- 1:num.teams # first permutation
   j <- 0
+  save.image("./workspace.Rdata")      
+  load("./workspace.Rdata")
   #keep.going <- TRUE
   system.time(
     # go through every ordering of teams, and hence, every schedule 
@@ -63,7 +65,7 @@ result.list <- lapply(years, function(yr) {
       j <- j + 1
       # every 1000000 iterations, save
       if(j%%1000000==0) {
-        save(c(j, curr, record.distribution), file = "results.Rda")
+        save.image("./workspace.Rdata")      
       } 
     } 
   )
