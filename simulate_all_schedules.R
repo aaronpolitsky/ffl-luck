@@ -11,7 +11,8 @@ seasons <- seasons[, X:=NULL] # remove that index column
 #season.dt <- get.season.scores(league.id = 117, year = 2016)[week <= weeks]
 
 years <- seasons[, unique(year)]
-
+# just do this one for now.
+years <- 2017
 result.list <- lapply(years, function(yr) {
   season.dt <- seasons[year==yr] 
 
@@ -45,12 +46,11 @@ result.list <- lapply(years, function(yr) {
 
   curr <- 1:num.teams # first permutation
   j <- 0
-  keep.going <- TRUE
-  #ten.thousandth.curr <- c(1,2,3,4,6,12,11,7,9,10,5,8) # because i simulated it.
+  #keep.going <- TRUE
   system.time(
     # go through every ordering of teams, and hence, every schedule 
-    # while(length(curr) > 0) { # this is what get.next.permutation returns when it rolls over.
-    while(keep.going) {
+    while(length(curr) > 0) { # this is what get.next.permutation returns when it rolls over.
+    #while(keep.going) {
       #  while(!all(curr == ten.thousandth.curr)) { 
       # curr is the current ordering of teams to schedule slots.  
 
@@ -58,10 +58,13 @@ result.list <- lapply(years, function(yr) {
                       ordering = curr,
                       all.possible.matchups = all.possible.matchups, 
                       rec.dist = record.distribution)
-      curr <- get.next.permutation()
+      curr <- get.next.permutation(curr)
 
       j <- j + 1
-      if(j==10000) {keep.going <- FALSE} # break condition
+      # every 1000000 iterations, save
+      if(j%%1000000==0) {
+        save(c(j, curr, record.distribution), file = "results.Rda")
+      } 
     } 
   )
 
