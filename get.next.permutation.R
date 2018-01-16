@@ -1,4 +1,8 @@
-get.next.permutation <- function(curr) {
+get.next.permutation <- function(curr, stop.curr=NULL) {
+  if(all(curr==stop.curr)) {
+    return(0)
+  }
+  
   # Find longest non-increasing suffix
   i <- length(curr)
   while (i > 1 && curr[i-1] >= curr[i]) { 
