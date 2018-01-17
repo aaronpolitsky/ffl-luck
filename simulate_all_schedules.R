@@ -72,12 +72,16 @@ clusterEvalQ(cl, library('data.table'))
 clusterExport(cl, c("sched", "all.possible.matchups", "record.distribution"))
 
 #initialize if need be
-#foreach(ci=1:8) %dopar% {
-#  curr <- breaks[[ci]]
-#  stop.curr <- breaks[[ci+1]]
-#  j <- 0
-#  save.image(file=paste0("image_", ci,".Rdata"))
-#}
+init <- F
+if(init==T) {
+  foreach(ci=1:8) %dopar% {
+    curr <- breaks[[ci]]
+    stop.curr <- breaks[[ci+1]]
+    j <- 0
+    save(list = c('j', 'curr', 'record.distribution'),
+         file=paste0("image_", ci,".Rdata"))
+  }
+}
 
 asdf1to8 <- foreach(ci=1:8) %dopar% {
   curr <- breaks[[ci]]
@@ -96,7 +100,8 @@ asdf1to8 <- foreach(ci=1:8) %dopar% {
     # every so often, save
     if(j%%10000==0) {
       print(c(paste0(ci,": ", round(j/denom*16*100, digits=3),"%")))
-      save.image(file=paste0("image_", ci,".Rdata"))
+      save(list = c('j', 'curr', 'record.distribution'),
+           file=paste0("image_", ci,".Rdata"))
     } 
   }
   save.image(file=paste0("image_",ci,".Rdata"))
