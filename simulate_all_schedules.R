@@ -1,5 +1,5 @@
-setwd("/home/rstudio-user/project")
-install.packages(c('data.table', 'XML', 'stringr', 'foreach', 'doSNOW'))
+#setwd("/home/rstudio-user/project")
+#install.packages(c('data.table', 'XML', 'stringr', 'foreach', 'doSNOW'))
 source('read.season.R')
 source('create_all_schedules.R')
 source("simulation_helper.R")
@@ -14,8 +14,8 @@ seasons <- seasons[, X:=NULL] # remove that index column
 
 years <- seasons[, unique(year)]
 # just do this one for now.
-yr <- 2015
-#result.list <- lapply(years, function(yr) {
+yr <- 2014
+
 season.dt <- seasons[year==yr] 
 
 setkeyv(season.dt, c("week", "owner"))
@@ -52,16 +52,11 @@ denom <- factorial(12)
 #save.image("./workspace.Rdata")    
 
 load("breaks.Rda")
-# restart from here
-#load("./workspace.Rdata")
-#keep.going <- TRUE
 
-# go through every ordering of teams, and hence, every schedule 
-library(foreach)
-library(doSNOW)
-#stopCluster(cl = cl)
-cl <- makeCluster(8, outfile="")
-registerDoSNOW(cl)
+library(parallel)
+cores <- detectCores()
+print(try(stopCluster(cl = cl), silent = T))
+cl <- makeCluster(cores, outfile="", logical=F)
 
 curr.index <- 1:16
 
@@ -69,28 +64,29 @@ clusterExport(cl, "breaks")
 clusterExport(cl, "get.next.permutation")
 clusterExport(cl, "simulate.season")
 clusterEvalQ(cl, library('data.table'))
-clusterExport(cl, c("sched", "all.possible.matchups", "record.distribution"))
+clusterExport(cl, c("sched", "all.possible.matchups", "record.distribution", "denom"))
 
 #initialize if need be
 init <- F
 if(init==T) {
-  foreach(ci=1:8) %dopar% {
+  sapply(1:16, function(ci) {
     curr <- breaks[[ci]]
     stop.curr <- breaks[[ci+1]]
     j <- 0
     save(list = c('j', 'curr', 'record.distribution'),
          file=paste0("image_", ci,".Rdata"))
-  }
+  })
 }
 
-asdf1to8 <- foreach(ci=1:8) %dopar% {
+do.one <- function(ci) {
   curr <- breaks[[ci]]
   stop.curr <- breaks[[ci+1]]
   j <- 0
   # for restarting
   load(file=paste0("image_", ci,".Rdata"))
-  #while(j < 10000) {
-  while(!all(curr==stop.curr)){
+  print(c(paste0(Sys.time(), ' ', ci,": ", j, ', ', round(j/denom*16*100, digits=3),"%")))
+  while(j < 10000) {
+  #while(!all(curr==stop.curr)){
     simulate.season(schedule = sched, 
                     ordering = curr,
                     all.possible.matchups = all.possible.matchups, 
@@ -98,8 +94,8 @@ asdf1to8 <- foreach(ci=1:8) %dopar% {
     curr <- get.next.permutation(curr, stop.curr = stop.curr)
     j <- j + 1
     # every so often, save
-    if(j%%10000==0) {
-      print(c(paste0(ci,": ", round(j/denom*16*100, digits=3),"%")))
+    if(j%%1000==0) {
+      print(c(paste0(Sys.time(), ' ', ci,": ", j, ', ', round(j/denom*16*100, digits=3),"%")))
       save(list = c('j', 'curr', 'record.distribution'),
            file=paste0("image_", ci,".Rdata"))
     } 
@@ -108,27 +104,13 @@ asdf1to8 <- foreach(ci=1:8) %dopar% {
   return(record.distribution)
 }
 
+system.time(
+  results <- clusterApply(cl, 1:16, do.one)
+)
+
 stopCluster(cl)
 
 stop()
-while(length(curr) > 1) { # get.next.permutation returns 0 when it rolls over.
-  #while(keep.going) {
-  #  while(!all(curr == ten.thousandth.curr)) { 
-  # curr is the current ordering of teams to schedule slots.  
-  
-  simulate.season(schedule = sched, 
-                  ordering = curr,
-                  all.possible.matchups = all.possible.matchups, 
-                  rec.dist = record.distribution)
-  curr <- get.next.permutation(curr)
-  
-  j <- j + 1
-  # every so often, save
-  if(j%%10000==0) {
-    print(c(paste0(round(j/denom*100, digits=3),"%"),curr))
-    save.image("./workspace.Rdata")
-  } 
-} 
 
 
 # add back owner names
