@@ -11,15 +11,12 @@ weeks <- 2*(div.size-1) + num.teams - div.size
 seasons <- as.data.table(read.csv(file = "league117history.csv"))
 seasons <- seasons[, X:=NULL] # remove that index column
 
-# import standings
-standings.dt <- load("standingsdt.Rda")
-
 years <- seasons[, unique(year)]
-# just do this one for now.
-#yr <- 2016
+# import standings
+standings.dt <- as.data.table(read.csv(file = "standingsdt.csv")[,-1])
 
-for(yr in years) {
-  standings <- get.season.standings(league.id = 117, year = yr)
+results.list <- lapply(years, function(yr) {
+  standings <- standings.dt[year==yr]
   setkeyv(standings, "owner")
   
   season.dt <- seasons[year==yr] 
@@ -40,6 +37,7 @@ for(yr in years) {
   names(record.distribution) <- c("home.owner.id", "w")
   setkeyv(record.distribution, c("home.owner.id", "w"))
   record.distribution$count = 0
+  record.distribution$year = yr
   
   # construct all matchups and generate perspective wins, to serve as a lookup 
   all.possible.matchups <- data.table(expand.grid(1:weeks, 1:num.teams, 1:num.teams))
@@ -52,7 +50,6 @@ for(yr in years) {
   all.possible.matchups[, w := home.score > opp.score]
   setkeyv(all.possible.matchups, c("week", "home.owner.id", "opp.owner.id"))
   
-  
   set.seed(99)
   
   system.time(
@@ -64,27 +61,29 @@ for(yr in years) {
                       all.possible.matchups = all.possible.matchups, 
                       rec.dist = record.distribution)
       if(ii %% 1000==0) {
-        print(ii)
+        print(paste(yr, ": ", ii/number.of.seasons.to.simulate))
       }
     }
   )
   
-# add back owner names
-record.distribution <- 
-  merge(x=record.distribution, y=unique(season.dt[, .(owner.id, owner)]),by.x="home.owner.id", by.y = "owner.id")
+  # add back owner names
+  record.distribution <- 
+    merge(x=record.distribution, y=unique(season.dt[, .(owner.id, owner)]),by.x="home.owner.id", by.y = "owner.id")
+  
+  record.distribution[, expected.wins := sum(w*count)/sum(count), by=.(home.owner.id)]
+  record.distribution[, prob := count/number.of.seasons.to.simulate, by=.(owner)]
+  record.distribution[, cumprob := cumsum(prob), by=.(owner)]
+  record.distribution[, stdev := sqrt(sum(count*(w-expected.wins)^2)/number.of.seasons.to.simulate), by=.(owner)]
+  
+  # attach actual wins
+  setkeyv(record.distribution, "owner")
+  record.distribution[standings, actual.wins := wins]
+  setkeyv(record.distribution, c("home.owner.id", "w"))
+  write.csv(x = record.distribution, file = paste0("rec.dist",yr,".csv"))
 
-record.distribution[, expected.wins := sum(w*count)/sum(count), by=.(home.owner.id)]
-record.distribution[, prob := count/number.of.seasons.to.simulate, by=.(owner)]
-record.distribution[, cumprob := cumsum(prob), by=.(owner)]
-record.distribution[, stdev := sqrt(sum(count*(w-expected.wins)^2)/number.of.seasons.to.simulate), by=.(owner)]
-
-# attach actual wins
-setkeyv(record.distribution, "owner")
-record.distribution[standings, actual.wins := wins]
-setkeyv(record.distribution, c("home.owner.id", "w"))
-write.csv(x = record.distribution, file = paste0("rec.dist",yr,".csv"))
-
-return(record.distribution)
-}
+  return(record.distribution)
+})
+record.distribution.history <- rbindlist(results)
+save(list=c("record.distribution.history"))
 save(list=c("yr", "record.distribution"), file=paste0(year,"results.Rda"))
 #})
