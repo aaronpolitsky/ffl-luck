@@ -39,7 +39,16 @@ results.list <- lapply(years, function(yr) {
   record.distribution$count = 0
   record.distribution$year = yr
   
-  # construct all matchups and generate perspective wins, to serve as a lookup 
+  #construct playoff rates
+  playoff.rates <-
+    as.data.table(expand.grid(c(1:num.teams)))
+  names(playoff.rates) <- "home.owner.id"
+  playoff.rates$div.winner <- 0
+  playoff.rates$wild.card <- 0
+  playoff.rates$made.playoffs <- 0
+  setkeyv(playoff.rates, c("home.owner.id"))
+
+    # construct all matchups and generate perspective wins, to serve as a lookup 
   all.possible.matchups <- data.table(expand.grid(1:weeks, 1:num.teams, 1:num.teams))
   names(all.possible.matchups) <- c("week", "home.owner.id", "opp.owner.id")
   setkeyv(all.possible.matchups, c("week", "home.owner.id"))
@@ -50,6 +59,12 @@ results.list <- lapply(years, function(yr) {
   all.possible.matchups[, w := home.score > opp.score]
   setkeyv(all.possible.matchups, c("week", "home.owner.id", "opp.owner.id"))
   
+  # get points for
+  points.for <- all.possible.matchups[, unique(home.score), by=.(week, home.owner.id)][
+    , sum(V1), by=.(home.owner.id)]
+
+  all.possible.matchups[, unique(home.score), by=.(home.owner.id, week)][]
+  
   set.seed(99)
   
   system.time(
@@ -59,7 +74,9 @@ results.list <- lapply(years, function(yr) {
       simulate.season(schedule = sched, 
                       ordering = curr,
                       all.possible.matchups = all.possible.matchups, 
-                      rec.dist = record.distribution)
+                      rec.dist = record.distribution,
+                      points.for = points.for,
+                      playoff.rates = playoff.rates)
       if(ii %% 1000==0) {
         print(paste(yr, ": ", ii/number.of.seasons.to.simulate))
       }
@@ -81,9 +98,9 @@ results.list <- lapply(years, function(yr) {
   setkeyv(record.distribution, c("home.owner.id", "w"))
   write.csv(x = record.distribution, file = paste0("rec.dist",yr,".csv"))
 
+  record.distribution <- record.distribution[playoff.rates]
   return(record.distribution)
 })
-record.distribution.history <- rbindlist(results)
-save(list=c("record.distribution.history"))
-save(list=c("yr", "record.distribution"), file=paste0(year,"results.Rda"))
-#})
+record.distribution.history <- rbindlist(results.list)
+write.csv(x = record.distribution.history, file="record.distribution.history.csv")
+
