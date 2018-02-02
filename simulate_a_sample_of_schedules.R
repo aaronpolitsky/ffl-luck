@@ -15,7 +15,14 @@ years <- seasons[, unique(year)]
 # import standings
 standings.dt <- as.data.table(read.csv(file = "standingsdt.csv")[,-1])
 
-results.list <- lapply(years, function(yr) {
+results.list <- list()
+yr.index <- 1
+yr <- years[yr.index]
+#save(list=c("results.list", "yr", "yr.index"), file = "results.Rda")
+
+load(file = "results.Rda")
+
+while(yr <= years[length(years)]) {
   standings <- standings.dt[year==yr]
   setkeyv(standings, "owner")
   
@@ -47,8 +54,8 @@ results.list <- lapply(years, function(yr) {
   playoff.rates$wild.card <- 0
   playoff.rates$made.playoffs <- 0
   setkeyv(playoff.rates, c("home.owner.id"))
-
-    # construct all matchups and generate perspective wins, to serve as a lookup 
+  
+  # construct all matchups and generate perspective wins, to serve as a lookup 
   all.possible.matchups <- data.table(expand.grid(1:weeks, 1:num.teams, 1:num.teams))
   names(all.possible.matchups) <- c("week", "home.owner.id", "opp.owner.id")
   setkeyv(all.possible.matchups, c("week", "home.owner.id"))
@@ -62,26 +69,25 @@ results.list <- lapply(years, function(yr) {
   # get points for
   points.for <- all.possible.matchups[, unique(home.score), by=.(week, home.owner.id)][
     , sum(V1), by=.(home.owner.id)]
-
+  
   all.possible.matchups[, unique(home.score), by=.(home.owner.id, week)][]
   
   set.seed(99)
   
-  system.time(
-    for(ii in 1:number.of.seasons.to.simulate) {
-      curr <- sample(1:12, replace = F)
-      
-      simulate.season(schedule = sched, 
-                      ordering = curr,
-                      all.possible.matchups = all.possible.matchups, 
-                      rec.dist = record.distribution,
-                      points.for = points.for,
-                      playoff.rates = playoff.rates)
-      if(ii %% 1000==0) {
-        print(paste(yr, ": ", ii/number.of.seasons.to.simulate))
-      }
+  #for(ii in 1:100) {
+  for(ii in 1:number.of.seasons.to.simulate) {
+    curr <- sample(1:12, replace = F)
+    
+    simulate.season(schedule = sched, 
+                    ordering = curr,
+                    all.possible.matchups = all.possible.matchups, 
+                    rec.dist = record.distribution,
+                    points.for = points.for,
+                    playoff.rates = playoff.rates)
+    if(ii %% 1000==0) {
+      print(paste(yr, ": ", ii/number.of.seasons.to.simulate))
     }
-  )
+  }
   
   # add back owner names
   record.distribution <- 
@@ -89,18 +95,20 @@ results.list <- lapply(years, function(yr) {
   
   record.distribution[, expected.wins := sum(w*count)/sum(count), by=.(home.owner.id)]
   record.distribution[, prob := count/number.of.seasons.to.simulate, by=.(owner)]
-  record.distribution[, cumprob := cumsum(prob), by=.(owner)]
-  record.distribution[, stdev := sqrt(sum(count*(w-expected.wins)^2)/number.of.seasons.to.simulate), by=.(owner)]
   
   # attach actual wins
   setkeyv(record.distribution, "owner")
   record.distribution[standings, actual.wins := wins]
   setkeyv(record.distribution, c("home.owner.id", "w"))
-  write.csv(x = record.distribution, file = paste0("rec.dist",yr,".csv"))
-
+  
   record.distribution <- record.distribution[playoff.rates]
-  return(record.distribution)
-})
+  
+  results.list[[yr.index]] <- record.distribution
+  yr <- yr + 1
+  yr.index <- yr.index + 1
+  save(list=c("results.list", "yr", "yr.index"), file = "results.Rda")
+  #return(record.distribution)
+}
 record.distribution.history <- rbindlist(results.list)
 write.csv(x = record.distribution.history, file="record.distribution.history.csv")
 
