@@ -1,4 +1,5 @@
 #setwd("/home/rstudio-user/project")
+
 #install.packages(c('data.table', 'XML', 'stringr', 'foreach', 'doSNOW'))
 source('read.season.R')
 source('create_all_schedules.R')
@@ -20,7 +21,7 @@ yr.index <- 1
 yr <- years[yr.index]
 #save(list=c("results.list", "yr", "yr.index"), file = "results.Rda")
 
-load(file = "results.Rda")
+#load(file = "results.Rda")
 
 while(yr <= years[length(years)]) {
   standings <- standings.dt[year==yr]
